@@ -219,9 +219,21 @@
 
 <div class="reset-wrap">
   <button class="reset-btn" onclick="resetAll()">リセット</button>
+  <button class="reset-btn" onclick="exportAll()">エクスポート</button>
+  <button class="reset-btn" onclick="document.getElementById('import-file').click()">インポート</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importAll(this.files[0])">
 </div>
 
 <script>
+// ---- Persistence ----
+const STORAGE_KEY = 'stratmap';
+function loadStore() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function saveSection(section, data) { const s = loadStore(); s.version = 1; s.updatedAt = new Date().toISOString(); s[section] = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function loadSection(section) { return loadStore()[section] || null; }
+function exportAll() { const s = loadStore(); const b = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stratmap-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); }
+function importAll(file) { if (!file) return; const r = new FileReader(); r.onload = (e) => { try { localStorage.setItem(STORAGE_KEY, e.target.result); location.reload(); } catch { alert('JSONファイルの読み込みに失敗しました'); } }; r.readAsText(file); }
+function saveThis() { saveSection('howMechanism', { values: {...values} }); }
+
 const MECHANISMS = [
   { id: 'channel',    label: 'チャネル適合',     desc: '顧客が普段いる場所で届けられるか' },
   { id: 'format',     label: '提供形態',         desc: 'プロダクト/サービスの形が顧客に合っているか' },
@@ -258,6 +270,7 @@ function buildCards() {
     card.querySelector('input').addEventListener('input', function() {
       values[m.id] = +this.value;
       update();
+      saveThis();
     });
   });
 }
@@ -301,9 +314,20 @@ function resetAll() {
     document.getElementById('sl-' + m.id).value = 5;
   });
   update();
+  saveThis();
 }
 
+// Restore
+(function restore() {
+  const saved = loadSection('howMechanism');
+  if (saved && saved.values) Object.assign(values, saved.values);
+})();
 buildCards();
+// Sync sliders with restored values
+MECHANISMS.forEach(m => {
+  const sl = document.getElementById('sl-' + m.id);
+  if (sl) sl.value = values[m.id];
+});
 update();
 </script>
 </body>

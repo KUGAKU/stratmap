@@ -290,9 +290,21 @@
 <div class="actions">
   <button class="btn" onclick="clearMatrix()">関連度クリア</button>
   <button class="btn" onclick="resetAll()">全リセット</button>
+  <button class="btn" onclick="exportAll()">エクスポート</button>
+  <button class="btn" onclick="document.getElementById('import-file').click()">インポート</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importAll(this.files[0])">
 </div>
 
 <script>
+// ---- Persistence ----
+const STORAGE_KEY = 'stratmap';
+function loadStore() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function saveSection(section, data) { const s = loadStore(); s.version = 1; s.updatedAt = new Date().toISOString(); s[section] = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function loadSection(section) { return loadStore()[section] || null; }
+function exportAll() { const s = loadStore(); const b = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stratmap-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); }
+function importAll(file) { if (!file) return; const r = new FileReader(); r.onload = (e) => { try { localStorage.setItem(STORAGE_KEY, e.target.result); location.reload(); } catch { alert('JSONファイルの読み込みに失敗しました'); } }; r.readAsText(file); }
+function saveThis() { saveSection('howCross', { jValues: {...jVals}, mValues: {...mVals}, relevance: {...relevance} }); }
+
 const JOURNEY = [
   { id: 'awareness', label: '認知' },
   { id: 'interest',  label: '興味' },
@@ -362,6 +374,7 @@ function cycleCell(td, key) {
   td.setAttribute('data-level', lv);
   td.querySelector('.cell-icon').textContent = LEVEL_ICONS[lv];
   updateStats();
+  saveThis();
 }
 
 function buildSliders() {
@@ -380,6 +393,7 @@ function buildSliders() {
       document.getElementById('jsv-' + j.id).textContent = this.value;
       document.getElementById('jh-' + j.id).textContent = this.value;
       updateStats();
+      saveThis();
     });
   });
 
@@ -398,6 +412,7 @@ function buildSliders() {
       document.getElementById('msv-' + m.id).textContent = this.value;
       document.getElementById('mh-' + m.id).textContent = this.value;
       updateStats();
+      saveThis();
     });
   });
 }
@@ -445,6 +460,7 @@ function clearMatrix() {
     td.querySelector('.cell-icon').textContent = LEVEL_ICONS[0];
   });
   updateStats();
+  saveThis();
 }
 
 function resetAll() {
@@ -469,8 +485,30 @@ function resetAll() {
   clearMatrix();
 }
 
+// Restore
+(function restore() {
+  const saved = loadSection('howCross');
+  if (saved) {
+    if (saved.jValues) Object.assign(jVals, saved.jValues);
+    if (saved.mValues) Object.assign(mVals, saved.mValues);
+    if (saved.relevance) Object.assign(relevance, saved.relevance);
+  }
+})();
 buildMatrix();
 buildSliders();
+// Sync sliders with restored values
+JOURNEY.forEach(j => {
+  const sl = document.getElementById('jsl-' + j.id);
+  const sv = document.getElementById('jsv-' + j.id);
+  if (sl) sl.value = jVals[j.id];
+  if (sv) sv.textContent = jVals[j.id];
+});
+MECHANISM.forEach(m => {
+  const sl = document.getElementById('msl-' + m.id);
+  const sv = document.getElementById('msv-' + m.id);
+  if (sl) sl.value = mVals[m.id];
+  if (sv) sv.textContent = mVals[m.id];
+});
 updateStats();
 </script>
 </body>

@@ -293,6 +293,9 @@
     <button class="tab" onclick="setMode('bubble', this)">バブル</button>
   </div>
   <button class="reset-btn" onclick="resetAll()">リセット</button>
+  <button class="reset-btn" onclick="exportAll()">エクスポート</button>
+  <button class="reset-btn" onclick="document.getElementById('import-file').click()">インポート</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importAll(this.files[0])">
 </div>
 
 <div class="group-toggles" id="group-toggles"></div>
@@ -314,6 +317,15 @@
 </div>
 
 <script>
+// ---- Persistence ----
+const STORAGE_KEY = 'stratmap';
+function loadStore() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function saveSection(section, data) { const s = loadStore(); s.version = 1; s.updatedAt = new Date().toISOString(); s[section] = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function loadSection(section) { return loadStore()[section] || null; }
+function exportAll() { const s = loadStore(); const b = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stratmap-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); }
+function importAll(file) { if (!file) return; const r = new FileReader(); r.onload = (e) => { try { localStorage.setItem(STORAGE_KEY, e.target.result); location.reload(); } catch { alert('JSONファイルの読み込みに失敗しました'); } }; r.readAsText(file); }
+function saveThis() { saveSection('who', { values: {...values}, activeAxes: [...activeAxes] }); }
+
 const AXES = [
   { id:'geo',    label:'地域・地政学',    group:'企業・組織',    color:'#7F77DD', desc:'グローバル・国内・地方都市など、ターゲット地域の範囲と特性。海外展開の有無や地域固有の規制も含む。' },
   { id:'size',   label:'企業規模',        group:'企業・組織',    color:'#7F77DD', desc:'大企業／中堅／SMB／スタートアップ。予算規模・意思決定速度・組織複雑性が大きく変わる。' },
@@ -370,6 +382,7 @@ function buildGroupToggles() {
       if (!allOn) { btn.style.borderColor = col; btn.style.color = col; }
       else { btn.style.borderColor = ''; btn.style.color = 'var(--text3)'; }
       draw();
+      saveThis();
     };
     wrap.appendChild(btn);
   });
@@ -392,6 +405,7 @@ function buildSliders() {
       values[a.id] = +this.value;
       document.getElementById('sv-' + a.id).textContent = this.value;
       draw();
+      saveThis();
     });
   });
 }
@@ -459,6 +473,7 @@ function resetAll() {
     if (sv) sv.textContent = 5;
   });
   draw();
+  saveThis();
 }
 
 // ---- Canvas ----
@@ -780,8 +795,22 @@ function drawBubble() {
 }
 
 // Init
+(function restore() {
+  const saved = loadSection('who');
+  if (saved) {
+    if (saved.values) Object.assign(values, saved.values);
+    if (saved.activeAxes) { activeAxes = new Set(saved.activeAxes); }
+  }
+})();
 buildGroupToggles();
 buildSliders();
+// Sync sliders with restored values
+AXES.forEach(a => {
+  const sl = document.getElementById('sl-' + a.id);
+  const sv = document.getElementById('sv-' + a.id);
+  if (sl) sl.value = values[a.id];
+  if (sv) sv.textContent = values[a.id];
+});
 buildLegend();
 draw();
 window.addEventListener('resize', draw);

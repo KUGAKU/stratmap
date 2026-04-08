@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>戦略仮説ダッシュボード</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b66;
+    --text3: #9e9d98;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.2);
+    --font: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif;
+    --warn: #D85A30;
+    --good: #1D9E75;
+    --mid: #C4873B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #e8e7e1;
+      --text2: #9e9d98;
+      --text3: #5f5e5a;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.18);
+      --warn: #E8734A;
+      --good: #3CC99A;
+      --mid: #E0A84C;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1.5rem;
+    max-width: 960px;
+    margin: 0 auto;
+    background-image: radial-gradient(var(--border) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  h1 { font-size: 18px; font-weight: 500; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .actions { display: flex; gap: 6px; }
+  .btn {
+    font-size: 11px;
+    font-family: var(--font);
+    padding: 4px 12px;
+    border: 0.5px solid var(--border2);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+  }
+  .btn:hover { background: var(--bg2); }
+
+  /* Overview cards */
+  .overview {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin-bottom: 1.5rem;
+  }
+  .overview-card {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s;
+    display: block;
+  }
+  .overview-card:hover { border-color: var(--border2); }
+  .overview-card.empty { opacity: 0.4; }
+  .card-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+  .card-avg {
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card-meta {
+    font-size: 11px;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+  .sparkline {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 32px;
+  }
+  .spark-bar {
+    flex: 1;
+    border-radius: 2px;
+    min-width: 3px;
+    transition: height 0.2s;
+  }
+
+  .arrow-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    color: var(--text3);
+    font-size: 18px;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 1.5rem;
+  }
+  .section-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  /* Warnings */
+  .warn-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .warn-item {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 0.5px solid var(--border);
+    background: var(--bg2);
+  }
+  .warn-item.severe { border-left: 3px solid var(--warn); }
+  .warn-item.moderate { border-left: 3px solid var(--mid); }
+  .warn-item.info { border-left: 3px solid var(--text3); }
+  .warn-header {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 3px;
+  }
+  .warn-desc {
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+  .warn-empty {
+    font-size: 12px;
+    color: var(--text3);
+    padding: 12px 0;
+  }
+
+  /* Coherence bars */
+  .coherence-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .coherence-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .coherence-label {
+    font-size: 12px;
+    color: var(--text2);
+    min-width: 100px;
+    text-align: right;
+  }
+  .coherence-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bg3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .coherence-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+  .coherence-val {
+    font-size: 13px;
+    font-weight: 500;
+    min-width: 32px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    h1 { font-size: 16px; }
+    .overview { grid-template-columns: 1fr; gap: 8px; }
+    .arrow-col { display: none; }
+    .coherence-label { min-width: 80px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>戦略仮説ダッシュボード</h1>
+    <p class="subtitle">Who / What / How の整合性と弱点を俯瞰する</p>
+  </div>
+  <div class="actions">
+    <button class="btn" onclick="exportAll()">エクスポート</button>
+    <button class="btn" onclick="document.getElementById('import-file').click()">インポート</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importAll(this.files[0])">
+  </div>
+</header>
+
+<div class="overview" id="overview"></div>
+
+<div class="section">
+  <div class="section-title">弱点ハイライト</div>
+  <div class="warn-list" id="warnings"></div>
+</div>
+
+<div class="section">
+  <div class="section-title">整合性スコア</div>
+  <div class="coherence-list" id="coherence"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'stratmap';
+function loadStore() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function exportAll() { const s = loadStore(); const b = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stratmap-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); }
+function importAll(file) { if (!file) return; const r = new FileReader(); r.onload = (e) => { try { localStorage.setItem(STORAGE_KEY, e.target.result); location.reload(); } catch { alert('JSONファイルの読み込みに失敗しました'); } }; r.readAsText(file); }
+
+const store = loadStore();
+
+// ---- Axis definitions for labels ----
+const WHO_AXES = [
+  { id:'geo', label:'地域・地政学' }, { id:'size', label:'企業規模' }, { id:'biz', label:'ビジネスモデル' },
+  { id:'phase', label:'事業フェーズ' }, { id:'dx', label:'DX成熟度' }, { id:'reg', label:'規制環境' },
+  { id:'dept', label:'部署・部門' }, { id:'layer', label:'意思決定階層' }, { id:'budget', label:'予算権限' },
+  { id:'proc', label:'購買プロセス' }, { id:'style', label:'意思決定スタイル' },
+  { id:'urgency', label:'課題の緊急度' }, { id:'aware', label:'課題の認識度' },
+  { id:'pain', label:'ペイン vs ゲイン' }, { id:'motive', label:'変化の動機' },
+  { id:'rel', label:'既存関係' }, { id:'comp', label:'競合状況' },
+];
+const WHAT_AXES = [
+  { id:'functional', label:'機能的価値' }, { id:'economic', label:'経済的価値' },
+  { id:'emotional', label:'感情的価値' }, { id:'social', label:'社会的価値' },
+  { id:'pain', label:'課題解消度' }, { id:'gain', label:'新規ゲイン' },
+  { id:'advantage', label:'代替優位性' }, { id:'unique', label:'独自性' },
+  { id:'immediate', label:'即効性' }, { id:'lasting', label:'持続性' },
+  { id:'tangible', label:'実感しやすさ' }, { id:'spread', label:'波及性' },
+  { id:'voice', label:'顧客の声' }, { id:'behavior', label:'行動的根拠' },
+  { id:'validated', label:'検証済み度' }, { id:'market', label:'市場規模感' },
+];
+const JOURNEY_AXES = [
+  { id:'awareness', label:'認知' }, { id:'interest', label:'興味' },
+  { id:'contact', label:'初回接触' }, { id:'onboard', label:'導入' },
+  { id:'success', label:'成功体験' }, { id:'habit', label:'習慣化' },
+  { id:'deepen', label:'深化' }, { id:'advocate', label:'推奨' },
+];
+const MECH_AXES = [
+  { id:'channel', label:'チャネル適合' }, { id:'format', label:'提供形態' },
+  { id:'customize', label:'カスタマイズ余地' }, { id:'relation', label:'関係性モデル' },
+  { id:'revenue', label:'収益モデル' }, { id:'pricing', label:'価格妥当性' },
+  { id:'ops', label:'運用負荷' }, { id:'scale', label:'拡張余地' },
+];
+
+function getVal(section, key) {
+  const d = store[section];
+  if (!d) return null;
+  if (d.values && d.values[key] !== undefined) return d.values[key];
+  if (d.jValues && d.jValues[key] !== undefined) return d.jValues[key];
+  if (d.mValues && d.mValues[key] !== undefined) return d.mValues[key];
+  return null;
+}
+
+function getSectionVals(section, axes) {
+  const vals = [];
+  axes.forEach(a => {
+    const v = getVal(section, a.id);
+    if (v !== null) vals.push({ id: a.id, label: a.label, value: v });
+  });
+  return vals;
+}
+
+function avg(arr) {
+  if (arr.length === 0) return 0;
+  return arr.reduce((s, v) => s + v, 0) / arr.length;
+}
+
+// ---- Overview ----
+function renderOverview() {
+  const wrap = document.getElementById('overview');
+  const sections = [
+    { key: 'who', label: 'Who', sub: '想定顧客', axes: WHO_AXES, section: 'who', href: 'customer-hypothesis.html', color: '#7F77DD' },
+    { key: 'what', label: 'What', sub: '提供価値', axes: WHAT_AXES, section: 'what', href: 'value-proposition.html', color: '#D85A30' },
+    { key: 'how', label: 'How', sub: '提供方法', axes: null, section: null, href: null, color: '#2D7FF9' },
+  ];
+
+  sections.forEach((sec, i) => {
+    if (i > 0) {
+      const arrow = document.createElement('div');
+      arrow.className = 'arrow-col';
+      arrow.textContent = '→';
+      wrap.appendChild(arrow);
+    }
+
+    const card = document.createElement('a');
+
+    let vals = [];
+    let sparkColors = sec.color;
+
+    if (sec.key === 'how') {
+      // Combine journey + mechanism
+      const jv = getSectionVals('howJourney', JOURNEY_AXES);
+      const mv = getSectionVals('howMechanism', MECH_AXES);
+      vals = [...jv, ...mv];
+      card.href = 'how-journey-proto.html';
+    } else {
+      vals = getSectionVals(sec.section, sec.axes);
+      card.href = sec.href;
+    }
+
+    const hasData = vals.length > 0;
+    card.className = 'overview-card' + (hasData ? '' : ' empty');
+
+    const avgVal = hasData ? avg(vals.map(v => v.value)).toFixed(1) : '—';
+    const axisCount = sec.key === 'how' ? (JOURNEY_AXES.length + MECH_AXES.length) : sec.axes.length;
+
+    let sparkHTML = '';
+    if (hasData) {
+      sparkHTML = '<div class="sparkline">';
+      vals.forEach(v => {
+        const h = (v.value / 10) * 32;
+        const alpha = 0.3 + (v.value / 10) * 0.5;
+        sparkHTML += `<div class="spark-bar" style="height:${h}px;background:${sparkColors};opacity:${alpha}"></div>`;
+      });
+      sparkHTML += '</div>';
+    }
+
+    card.innerHTML = `
+      <div class="card-label">${sec.label}</div>
+      <div class="card-avg">${avgVal}</div>
+      <div class="card-meta">${hasData ? vals.length + '/' + axisCount + '軸入力済' : '未入力'} · ${sec.sub}</div>
+      ${sparkHTML}
+    `;
+    wrap.appendChild(card);
+  });
+}
+
+// ---- Pair rules for cross-check ----
+const PAIR_RULES = [
+  // Who × What
+  { a: { s: 'who', id: 'urgency' }, b: { s: 'what', id: 'pain' }, label: '課題の緊急度 × 課題解消度', desc: '緊急度が高い顧客に対して課題解消度が低い' },
+  { a: { s: 'who', id: 'aware' }, b: { s: 'what', id: 'tangible' }, label: '課題の認識度 × 実感しやすさ', desc: '認識度が高いのに実感しにくい価値を提供' },
+  { a: { s: 'who', id: 'dx' }, b: { s: 'what', id: 'functional' }, label: 'DX成熟度 × 機能的価値', desc: 'DX成熟度と機能的価値の水準に乖離' },
+  { a: { s: 'who', id: 'budget' }, b: { s: 'what', id: 'economic' }, label: '予算権限 × 経済的価値', desc: '予算規模と経済的価値のアピールに不整合' },
+  // What × How
+  { a: { s: 'what', id: 'immediate' }, b: { s: 'howJourney', id: 'onboard' }, label: '即効性 × 導入容易性', desc: '即効性を謳うが導入ハードルが高い' },
+  { a: { s: 'what', id: 'lasting' }, b: { s: 'howJourney', id: 'habit' }, label: '持続性 × 習慣化', desc: '持続的価値を掲げるが習慣化の仕組みが弱い' },
+  { a: { s: 'what', id: 'spread' }, b: { s: 'howJourney', id: 'advocate' }, label: '波及性 × 推奨', desc: '波及性があるのに推奨の仕組みがない' },
+  { a: { s: 'what', id: 'economic' }, b: { s: 'howMechanism', id: 'pricing' }, label: '経済的価値 × 価格妥当性', desc: '経済的価値と価格設定に矛盾' },
+  // Who × How
+  { a: { s: 'who', id: 'proc' }, b: { s: 'howJourney', id: 'contact' }, label: '購買プロセス × 初回接触', desc: '購買プロセスの複雑さに対して初回接触の設計が不十分' },
+  { a: { s: 'who', id: 'style' }, b: { s: 'howMechanism', id: 'relation' }, label: '意思決定スタイル × 関係性モデル', desc: '意思決定スタイルに関係性モデルが合っていない' },
+  { a: { s: 'who', id: 'size' }, b: { s: 'howMechanism', id: 'scale' }, label: '企業規模 × 拡張余地', desc: '大企業を狙うがスケーラビリティが低い' },
+];
+
+function getGroup(section) {
+  if (section === 'who') return 'Who×What';
+  if (section.startsWith('how')) return section.includes('Journey') ? 'What×How' : 'Who×How';
+  return '';
+}
+
+// ---- Warnings ----
+function renderWarnings() {
+  const wrap = document.getElementById('warnings');
+  const warnings = [];
+
+  // Single axis weakness (≤ 3)
+  const allSections = [
+    { s: 'who', axes: WHO_AXES, label: 'Who' },
+    { s: 'what', axes: WHAT_AXES, label: 'What' },
+    { s: 'howJourney', axes: JOURNEY_AXES, label: 'How(ジャーニー)' },
+    { s: 'howMechanism', axes: MECH_AXES, label: 'How(メカニズム)' },
+  ];
+
+  allSections.forEach(sec => {
+    sec.axes.forEach(a => {
+      const v = getVal(sec.s, a.id);
+      if (v !== null && v <= 3) {
+        warnings.push({
+          severity: v <= 2 ? 'severe' : 'moderate',
+          header: `${sec.label}「${a.label}: ${v}」`,
+          desc: `スコアが低く、仮説の弱点になっている可能性`,
+        });
+      }
+    });
+  });
+
+  // Pair divergence (≥ 5)
+  PAIR_RULES.forEach(rule => {
+    const va = getVal(rule.a.s, rule.a.id);
+    const vb = getVal(rule.b.s, rule.b.id);
+    if (va !== null && vb !== null) {
+      const diff = Math.abs(va - vb);
+      if (diff >= 5) {
+        warnings.push({
+          severity: 'severe',
+          header: `${rule.label}（${va} vs ${vb}、差${diff}）`,
+          desc: rule.desc,
+        });
+      } else if (diff >= 4) {
+        warnings.push({
+          severity: 'moderate',
+          header: `${rule.label}（${va} vs ${vb}、差${diff}）`,
+          desc: rule.desc,
+        });
+      }
+    }
+  });
+
+  // How cross: disconnected axes
+  const cross = store.howCross;
+  if (cross && cross.relevance) {
+    JOURNEY_AXES.forEach(j => {
+      const connected = MECH_AXES.some(m => (cross.relevance[j.id + ':' + m.id] || 0) > 0);
+      if (!connected) {
+        warnings.push({
+          severity: 'info',
+          header: `ジャーニー「${j.label}」が未接続`,
+          desc: 'メカニズムとの関連が定義されていない',
+        });
+      }
+    });
+    MECH_AXES.forEach(m => {
+      const connected = JOURNEY_AXES.some(j => (cross.relevance[j.id + ':' + m.id] || 0) > 0);
+      if (!connected) {
+        warnings.push({
+          severity: 'info',
+          header: `メカニズム「${m.label}」が未接続`,
+          desc: 'ジャーニーとの関連が定義されていない',
+        });
+      }
+    });
+  }
+
+  if (warnings.length === 0) {
+    wrap.innerHTML = '<div class="warn-empty">データを入力すると、仮説の弱点や矛盾がここに表示されます</div>';
+    return;
+  }
+
+  // Sort: severe first
+  const order = { severe: 0, moderate: 1, info: 2 };
+  warnings.sort((a, b) => order[a.severity] - order[b.severity]);
+
+  wrap.innerHTML = warnings.map(w => `
+    <div class="warn-item ${w.severity}">
+      <div class="warn-header">${w.header}</div>
+      <div class="warn-desc">${w.desc}</div>
+    </div>
+  `).join('');
+}
+
+// ---- Coherence ----
+function renderCoherence() {
+  const wrap = document.getElementById('coherence');
+
+  const pairs = [
+    { label: 'Who × What', rules: PAIR_RULES.filter(r => r.a.s === 'who' && r.b.s === 'what') },
+    { label: 'What × How', rules: PAIR_RULES.filter(r => r.a.s === 'what' && r.b.s.startsWith('how')) },
+    { label: 'Who × How', rules: PAIR_RULES.filter(r => r.a.s === 'who' && r.b.s.startsWith('how')) },
+  ];
+
+  pairs.forEach(pair => {
+    let diffs = [];
+    pair.rules.forEach(rule => {
+      const va = getVal(rule.a.s, rule.a.id);
+      const vb = getVal(rule.b.s, rule.b.id);
+      if (va !== null && vb !== null) {
+        diffs.push(Math.abs(va - vb));
+      }
+    });
+
+    let score, hasData;
+    if (diffs.length === 0) {
+      score = 0;
+      hasData = false;
+    } else {
+      // Score: 10 - average divergence (clamped 0-10)
+      const avgDiff = avg(diffs);
+      score = Math.max(0, Math.min(10, 10 - avgDiff)).toFixed(1);
+      hasData = true;
+    }
+
+    let color;
+    if (!hasData) color = 'var(--text3)';
+    else if (score >= 7) color = 'var(--good)';
+    else if (score >= 4) color = 'var(--mid)';
+    else color = 'var(--warn)';
+
+    const row = document.createElement('div');
+    row.className = 'coherence-row';
+    row.innerHTML = `
+      <div class="coherence-label">${pair.label}</div>
+      <div class="coherence-track">
+        <div class="coherence-fill" style="width:${hasData ? score * 10 : 0}%;background:${color}"></div>
+      </div>
+      <div class="coherence-val" style="color:${color}">${hasData ? score : '—'}</div>
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+// ---- Init ----
+renderOverview();
+renderWarnings();
+renderCoherence();
+</script>
+</body>
+</html>

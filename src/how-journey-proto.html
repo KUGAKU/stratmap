@@ -234,6 +234,9 @@
 <body>
 
 <button class="reset-btn" onclick="resetAll()">リセット</button>
+<button class="reset-btn" style="position:absolute;top:1.5rem;right:7.5rem;" onclick="exportAll()">エクスポート</button>
+<button class="reset-btn" style="position:absolute;top:1.5rem;right:13.5rem;" onclick="document.getElementById('import-file').click()">インポート</button>
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="importAll(this.files[0])">
 
 <header>
   <h1>顧客ジャーニー設計</h1>
@@ -247,6 +250,15 @@
 </div>
 
 <script>
+// ---- Persistence ----
+const STORAGE_KEY = 'stratmap';
+function loadStore() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function saveSection(section, data) { const s = loadStore(); s.version = 1; s.updatedAt = new Date().toISOString(); s[section] = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function loadSection(section) { return loadStore()[section] || null; }
+function exportAll() { const s = loadStore(); const b = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stratmap-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); }
+function importAll(file) { if (!file) return; const r = new FileReader(); r.onload = (e) => { try { localStorage.setItem(STORAGE_KEY, e.target.result); location.reload(); } catch { alert('JSONファイルの読み込みに失敗しました'); } }; r.readAsText(file); }
+function saveThis() { saveSection('howJourney', { values: {...values} }); }
+
 const STAGES = [
   { id: 'awareness',  label: '認知',     desc: 'どこで自社を知るか' },
   { id: 'interest',   label: '興味',     desc: '自分ごとだと感じるか' },
@@ -317,7 +329,7 @@ function setupDrag(track, id) {
     values[id] = getVal(e);
     updateBars();
   }
-  function onEnd() { dragging = false; }
+  function onEnd() { if (dragging) saveThis(); dragging = false; }
 
   track.addEventListener('mousedown', onStart);
   track.addEventListener('touchstart', onStart, { passive: false });
@@ -390,8 +402,14 @@ function updateSummary() {
 function resetAll() {
   STAGES.forEach(s => values[s.id] = 5);
   updateBars();
+  saveThis();
 }
 
+// Restore
+(function restore() {
+  const saved = loadSection('howJourney');
+  if (saved && saved.values) Object.assign(values, saved.values);
+})();
 buildPipeline();
 window.addEventListener('resize', updateFlowLine);
 </script>

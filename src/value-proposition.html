@@ -289,6 +289,9 @@
     <button class="tab" onclick="setMode('heatmap', this)">ヒートマップ</button>
   </div>
   <button class="reset-btn" onclick="resetAll()">リセット</button>
+  <button class="reset-btn" onclick="exportAll()">エクスポート</button>
+  <button class="reset-btn" onclick="document.getElementById('import-file').click()">インポート</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importAll(this.files[0])">
 </div>
 
 <div class="group-toggles" id="group-toggles"></div>
@@ -310,6 +313,15 @@
 </div>
 
 <script>
+// ---- Persistence ----
+const STORAGE_KEY = 'stratmap';
+function loadStore() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function saveSection(section, data) { const s = loadStore(); s.version = 1; s.updatedAt = new Date().toISOString(); s[section] = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function loadSection(section) { return loadStore()[section] || null; }
+function exportAll() { const s = loadStore(); const b = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stratmap-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); }
+function importAll(file) { if (!file) return; const r = new FileReader(); r.onload = (e) => { try { localStorage.setItem(STORAGE_KEY, e.target.result); location.reload(); } catch { alert('JSONファイルの読み込みに失敗しました'); } }; r.readAsText(file); }
+function saveThis() { saveSection('what', { values: {...values}, activeAxes: [...activeAxes] }); }
+
 const AXES = [
   { id:'functional', label:'機能的価値',   group:'価値の種類',     color:'#D85A30', desc:'やりたいことが、より良くできるようになるか' },
   { id:'economic',   label:'経済的価値',   group:'価値の種類',     color:'#D85A30', desc:'コスト削減・売上向上に繋がるか' },
@@ -368,6 +380,7 @@ function buildGroupToggles() {
       if (!allOn) { btn.style.borderColor = col; btn.style.color = col; }
       else { btn.style.borderColor = ''; btn.style.color = 'var(--text3)'; }
       draw();
+      saveThis();
     };
     wrap.appendChild(btn);
   });
@@ -390,6 +403,7 @@ function buildSliders() {
       values[a.id] = +this.value;
       document.getElementById('sv-' + a.id).textContent = this.value;
       draw();
+      saveThis();
     });
   });
 }
@@ -453,6 +467,7 @@ function resetAll() {
     if (sv) sv.textContent = 5;
   });
   draw();
+  saveThis();
 }
 
 // ---- Canvas ----
@@ -974,8 +989,21 @@ function setupHitDetection(hitTargets) {
 }
 
 // Init
+(function restore() {
+  const saved = loadSection('what');
+  if (saved) {
+    if (saved.values) Object.assign(values, saved.values);
+    if (saved.activeAxes) { activeAxes = new Set(saved.activeAxes); }
+  }
+})();
 buildGroupToggles();
 buildSliders();
+AXES.forEach(a => {
+  const sl = document.getElementById('sl-' + a.id);
+  const sv = document.getElementById('sv-' + a.id);
+  if (sl) sl.value = values[a.id];
+  if (sv) sv.textContent = values[a.id];
+});
 buildLegend();
 draw();
 window.addEventListener('resize', draw);
