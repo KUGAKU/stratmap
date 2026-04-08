@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>顧客ジャーニー設計（プロト）</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b66;
+    --text3: #9e9d98;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --font: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif;
+    --accent: #2D7FF9;
+    --accent-bg: rgba(45,127,249,0.08);
+    --accent-mid: rgba(45,127,249,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #e8e7e1;
+      --text2: #9e9d98;
+      --text3: #5f5e5a;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --accent: #5B9BFF;
+      --accent-bg: rgba(91,155,255,0.1);
+      --accent-mid: rgba(91,155,255,0.25);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 1.5rem 1.5rem 0;
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  h1 { font-size: 18px; font-weight: 500; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  .pipeline-area {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    padding: 2rem 1rem;
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+    min-height: 420px;
+  }
+
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding: 0 2px;
+  }
+
+  .stage-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-align: center;
+    margin-bottom: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .bar-track {
+    flex: 1;
+    width: 100%;
+    max-width: 56px;
+    background: var(--bg2);
+    border-radius: 6px;
+    position: relative;
+    cursor: ns-resize;
+    border: 0.5px solid var(--border);
+    overflow: hidden;
+    min-height: 200px;
+  }
+
+  .bar-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--accent);
+    border-radius: 0 0 5px 5px;
+    transition: height 0.08s ease-out;
+    opacity: 0.7;
+  }
+
+  .bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  .bar-value {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+    text-align: center;
+    margin-top: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stage-desc {
+    font-size: 10px;
+    color: var(--text3);
+    text-align: center;
+    margin-top: 6px;
+    line-height: 1.5;
+    padding: 0 2px;
+  }
+
+  /* Flow line SVG overlay */
+  .flow-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .flow-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.4;
+  }
+
+  /* Connector arrows between stages */
+  .stage + .stage::before {
+    content: '';
+    position: absolute;
+    left: -3px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--text3);
+    border-bottom: 1.5px solid var(--text3);
+    transform: translateY(-50%) rotate(-45deg);
+    opacity: 0.4;
+  }
+
+  .reset-btn {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    font-size: 12px;
+    font-family: var(--font);
+    padding: 5px 14px;
+    border: 0.5px solid var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+  }
+  .reset-btn:hover { background: var(--bg2); }
+
+  .summary-bar {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 1.5rem 2rem;
+  }
+  .summary-content {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg2);
+    border-radius: 10px;
+    border: 0.5px solid var(--border);
+    font-size: 12px;
+    color: var(--text2);
+    flex-wrap: wrap;
+  }
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .summary-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+  .summary-val {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  @media (max-width: 640px) {
+    header { padding: 1rem 1rem 0; }
+    h1 { font-size: 16px; }
+    .pipeline-area { padding: 1.5rem 0.5rem; min-height: 320px; }
+    .bar-track { max-width: 36px; }
+    .stage-label { font-size: 9px; }
+    .bar-value { font-size: 16px; }
+    .stage-desc { display: none; }
+    .reset-btn { top: 1rem; right: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<button class="reset-btn" onclick="resetAll()">リセット</button>
+
+<header>
+  <h1>顧客ジャーニー設計</h1>
+  <p class="subtitle">バーを直接ドラッグして、各段階の仮説の強さを調整</p>
+</header>
+
+<div class="pipeline-area" id="pipeline"></div>
+
+<div class="summary-bar">
+  <div class="summary-content" id="summary"></div>
+</div>
+
+<script>
+const STAGES = [
+  { id: 'awareness',  label: '認知',     desc: 'どこで自社を知るか' },
+  { id: 'interest',   label: '興味',     desc: '自分ごとだと感じるか' },
+  { id: 'contact',    label: '初回接触', desc: '最初の体験のハードル' },
+  { id: 'onboard',    label: '導入',     desc: '使い始めるまでの容易さ' },
+  { id: 'success',    label: '成功体験', desc: '早期に価値を実感するか' },
+  { id: 'habit',      label: '習慣化',   desc: '繰り返す理由があるか' },
+  { id: 'deepen',     label: '深化',     desc: '使い込むほど価値が増すか' },
+  { id: 'advocate',   label: '推奨',     desc: '他者に勧めたくなるか' },
+];
+
+let values = {};
+STAGES.forEach(s => values[s.id] = 5);
+
+function buildPipeline() {
+  const wrap = document.getElementById('pipeline');
+  wrap.style.position = 'relative';
+
+  STAGES.forEach(s => {
+    const stage = document.createElement('div');
+    stage.className = 'stage';
+    stage.innerHTML = `
+      <div class="stage-label">${s.label}</div>
+      <div class="bar-track" id="track-${s.id}">
+        <div class="bar-fill" id="fill-${s.id}"></div>
+      </div>
+      <div class="bar-value" id="val-${s.id}">${values[s.id]}</div>
+      <div class="stage-desc">${s.desc}</div>
+    `;
+    wrap.appendChild(stage);
+
+    const track = stage.querySelector('.bar-track');
+    setupDrag(track, s.id);
+  });
+
+  // SVG for flow line
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('flow-svg');
+  svg.id = 'flow-svg';
+  wrap.appendChild(svg);
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.classList.add('flow-line');
+  path.id = 'flow-path';
+  svg.appendChild(path);
+
+  updateBars();
+}
+
+function setupDrag(track, id) {
+  let dragging = false;
+
+  function getVal(e) {
+    const rect = track.getBoundingClientRect();
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const ratio = 1 - Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    return Math.max(1, Math.min(10, Math.round(ratio * 9 + 1)));
+  }
+
+  function onStart(e) {
+    e.preventDefault();
+    dragging = true;
+    values[id] = getVal(e);
+    updateBars();
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    values[id] = getVal(e);
+    updateBars();
+  }
+  function onEnd() { dragging = false; }
+
+  track.addEventListener('mousedown', onStart);
+  track.addEventListener('touchstart', onStart, { passive: false });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('mouseup', onEnd);
+  window.addEventListener('touchend', onEnd);
+}
+
+function updateBars() {
+  STAGES.forEach(s => {
+    const v = values[s.id];
+    const fill = document.getElementById('fill-' + s.id);
+    const val = document.getElementById('val-' + s.id);
+    fill.style.height = (v / 10 * 100) + '%';
+    val.textContent = v;
+  });
+  updateFlowLine();
+  updateSummary();
+}
+
+function updateFlowLine() {
+  const svg = document.getElementById('flow-svg');
+  const path = document.getElementById('flow-path');
+  const pipeline = document.getElementById('pipeline');
+  const pipeRect = pipeline.getBoundingClientRect();
+
+  svg.setAttribute('viewBox', `0 0 ${pipeRect.width} ${pipeRect.height}`);
+
+  const points = STAGES.map(s => {
+    const track = document.getElementById('track-' + s.id);
+    const rect = track.getBoundingClientRect();
+    const v = values[s.id];
+    const x = rect.left - pipeRect.left + rect.width / 2;
+    const y = rect.bottom - pipeRect.top - (v / 10) * rect.height;
+    return { x, y };
+  });
+
+  if (points.length < 2) return;
+
+  // Smooth curve through points
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    const mx = (p0.x + p1.x) / 2;
+    d += ` C ${mx} ${p0.y}, ${mx} ${p1.y}, ${p1.x} ${p1.y}`;
+  }
+  path.setAttribute('d', d);
+}
+
+function updateSummary() {
+  const sum = document.getElementById('summary');
+  const vals = STAGES.map(s => values[s.id]);
+  const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const minStage = STAGES[vals.indexOf(min)].label;
+  const maxStage = STAGES[vals.indexOf(max)].label;
+  const gap = max - min;
+
+  sum.innerHTML = `
+    <div class="summary-item"><div class="summary-dot"></div>平均 <span class="summary-val">${avg}</span></div>
+    <div class="summary-item">最高 <span class="summary-val">${maxStage} (${max})</span></div>
+    <div class="summary-item">最低 <span class="summary-val">${minStage} (${min})</span></div>
+    <div class="summary-item">ギャップ <span class="summary-val">${gap}</span></div>
+  `;
+}
+
+function resetAll() {
+  STAGES.forEach(s => values[s.id] = 5);
+  updateBars();
+}
+
+buildPipeline();
+window.addEventListener('resize', updateFlowLine);
+</script>
+</body>
+</html>

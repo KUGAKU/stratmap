@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ジャーニー × メカニズム（プロト）</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b66;
+    --text3: #9e9d98;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.2);
+    --font: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif;
+    --c-none: transparent;
+    --c-weak: rgba(210,140,40,0.2);
+    --c-mid: rgba(210,140,40,0.45);
+    --c-strong: rgba(210,140,40,0.75);
+    --accent-j: #2D7FF9;
+    --accent-m: #1D9E75;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #e8e7e1;
+      --text2: #9e9d98;
+      --text3: #5f5e5a;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.18);
+      --c-weak: rgba(230,175,60,0.2);
+      --c-mid: rgba(230,175,60,0.45);
+      --c-strong: rgba(230,175,60,0.75);
+      --accent-j: #5B9BFF;
+      --accent-m: #3CC99A;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1.5rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  header { margin-bottom: 1.25rem; }
+  h1 { font-size: 18px; font-weight: 500; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  .legend-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .legend-swatch {
+    width: 18px;
+    height: 14px;
+    border-radius: 3px;
+    border: 0.5px solid var(--border2);
+  }
+
+  .matrix-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1.5rem;
+  }
+
+  table {
+    border-collapse: separate;
+    border-spacing: 3px;
+    width: 100%;
+    min-width: 600px;
+  }
+
+  th {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 8px 4px;
+    white-space: nowrap;
+  }
+
+  .col-header {
+    color: var(--accent-m);
+    text-align: center;
+    vertical-align: bottom;
+    position: relative;
+  }
+  .col-header .header-val {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .row-header {
+    text-align: right;
+    color: var(--accent-j);
+    padding-right: 10px;
+    min-width: 64px;
+  }
+  .row-header .header-val {
+    font-size: 14px;
+    font-weight: 500;
+    margin-left: 4px;
+  }
+
+  .corner { background: transparent; }
+
+  td.cell {
+    text-align: center;
+    vertical-align: middle;
+    width: 11%;
+    height: 48px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.08s;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    border: 0.5px solid var(--border);
+  }
+  td.cell:hover { transform: scale(1.04); }
+  td.cell:active { transform: scale(0.97); }
+
+  td.cell[data-level="0"] { background: var(--c-none); }
+  td.cell[data-level="1"] { background: var(--c-weak); }
+  td.cell[data-level="2"] { background: var(--c-mid); }
+  td.cell[data-level="3"] { background: var(--c-strong); }
+
+  .cell-icon {
+    font-size: 14px;
+    line-height: 1;
+    pointer-events: none;
+  }
+  td.cell[data-level="0"] .cell-icon { color: var(--text3); opacity: 0.3; }
+  td.cell[data-level="1"] .cell-icon { color: var(--text2); }
+  td.cell[data-level="2"] .cell-icon { color: var(--text); }
+  td.cell[data-level="3"] .cell-icon { color: var(--text); font-weight: bold; }
+
+  .stats-bar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    background: var(--bg2);
+    border-radius: 10px;
+    border: 0.5px solid var(--border);
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+  }
+  .stat-item { display: flex; gap: 6px; align-items: center; }
+  .stat-val { font-weight: 500; color: var(--text); }
+
+  .sliders-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .slider-group h3 {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+  .slider-group h3.journey-color { color: var(--accent-j); }
+  .slider-group h3.mechanism-color { color: var(--accent-m); }
+
+  .mini-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .mini-slider label {
+    font-size: 11px;
+    color: var(--text2);
+    min-width: 64px;
+    text-align: right;
+  }
+  .mini-slider input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--bg3);
+    outline: none;
+    cursor: pointer;
+  }
+  .mini-slider input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 0.5px var(--border2);
+    cursor: pointer;
+  }
+  .mini-slider input[type=range]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+  .mini-slider .sv {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text);
+    min-width: 16px;
+    text-align: center;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 1rem;
+  }
+  .btn {
+    font-size: 12px;
+    font-family: var(--font);
+    padding: 5px 14px;
+    border: 0.5px solid var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+  }
+  .btn:hover { background: var(--bg2); }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    h1 { font-size: 16px; }
+    .sliders-section { grid-template-columns: 1fr; gap: 16px; }
+    td.cell { height: 40px; }
+    th { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ジャーニー × メカニズム</h1>
+  <p class="subtitle">セルをクリックして関連度（なし → 弱 → 中 → 強）を切り替え</p>
+</header>
+
+<div class="legend-row">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-none);"></div>関連なし</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-weak);"></div>弱い関連</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-mid);"></div>中程度</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-strong);"></div>強い関連</div>
+</div>
+
+<div class="matrix-wrap">
+  <table id="matrix"></table>
+</div>
+
+<div class="stats-bar" id="stats"></div>
+
+<div class="sliders-section">
+  <div class="slider-group">
+    <h3 class="journey-color">ジャーニー軸スコア</h3>
+    <div id="j-sliders"></div>
+  </div>
+  <div class="slider-group">
+    <h3 class="mechanism-color">メカニズム軸スコア</h3>
+    <div id="m-sliders"></div>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn" onclick="clearMatrix()">関連度クリア</button>
+  <button class="btn" onclick="resetAll()">全リセット</button>
+</div>
+
+<script>
+const JOURNEY = [
+  { id: 'awareness', label: '認知' },
+  { id: 'interest',  label: '興味' },
+  { id: 'contact',   label: '初回接触' },
+  { id: 'onboard',   label: '導入' },
+  { id: 'success',   label: '成功体験' },
+  { id: 'habit',     label: '習慣化' },
+  { id: 'deepen',    label: '深化' },
+  { id: 'advocate',  label: '推奨' },
+];
+
+const MECHANISM = [
+  { id: 'channel',   label: 'チャネル' },
+  { id: 'format',    label: '提供形態' },
+  { id: 'customize', label: 'カスタマイズ' },
+  { id: 'relation',  label: '関係性' },
+  { id: 'revenue',   label: '収益モデル' },
+  { id: 'pricing',   label: '価格' },
+  { id: 'ops',       label: '運用負荷' },
+  { id: 'scale',     label: '拡��余地' },
+];
+
+// Scores for each axis
+let jVals = {};
+let mVals = {};
+JOURNEY.forEach(j => jVals[j.id] = 5);
+MECHANISM.forEach(m => mVals[m.id] = 5);
+
+// Relevance: 0=none, 1=weak, 2=mid, 3=strong
+let relevance = {};
+JOURNEY.forEach(j => {
+  MECHANISM.forEach(m => {
+    relevance[j.id + ':' + m.id] = 0;
+  });
+});
+
+const LEVEL_ICONS = ['·', '○', '●', '◉'];
+
+function buildMatrix() {
+  const table = document.getElementById('matrix');
+  // Header row
+  let html = '<tr><th class="corner"></th>';
+  MECHANISM.forEach(m => {
+    html += `<th class="col-header">${m.label}<span class="header-val" id="mh-${m.id}">${mVals[m.id]}</span></th>`;
+  });
+  html += '</tr>';
+
+  // Data rows
+  JOURNEY.forEach(j => {
+    html += `<tr><th class="row-header">${j.label}<span class="header-val" id="jh-${j.id}">${jVals[j.id]}</span></th>`;
+    MECHANISM.forEach(m => {
+      const key = j.id + ':' + m.id;
+      const lv = relevance[key];
+      html += `<td class="cell" data-level="${lv}" data-key="${key}" onclick="cycleCell(this, '${key}')">
+        <span class="cell-icon">${LEVEL_ICONS[lv]}</span>
+      </td>`;
+    });
+    html += '</tr>';
+  });
+
+  table.innerHTML = html;
+}
+
+function cycleCell(td, key) {
+  let lv = (relevance[key] + 1) % 4;
+  relevance[key] = lv;
+  td.setAttribute('data-level', lv);
+  td.querySelector('.cell-icon').textContent = LEVEL_ICONS[lv];
+  updateStats();
+}
+
+function buildSliders() {
+  const jWrap = document.getElementById('j-sliders');
+  JOURNEY.forEach(j => {
+    const row = document.createElement('div');
+    row.className = 'mini-slider';
+    row.innerHTML = `
+      <label>${j.label}</label>
+      <input type="range" min="1" max="10" value="${jVals[j.id]}" step="1" id="jsl-${j.id}">
+      <span class="sv" id="jsv-${j.id}">${jVals[j.id]}</span>
+    `;
+    jWrap.appendChild(row);
+    row.querySelector('input').addEventListener('input', function() {
+      jVals[j.id] = +this.value;
+      document.getElementById('jsv-' + j.id).textContent = this.value;
+      document.getElementById('jh-' + j.id).textContent = this.value;
+      updateStats();
+    });
+  });
+
+  const mWrap = document.getElementById('m-sliders');
+  MECHANISM.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'mini-slider';
+    row.innerHTML = `
+      <label>${m.label}</label>
+      <input type="range" min="1" max="10" value="${mVals[m.id]}" step="1" id="msl-${m.id}">
+      <span class="sv" id="msv-${m.id}">${mVals[m.id]}</span>
+    `;
+    mWrap.appendChild(row);
+    row.querySelector('input').addEventListener('input', function() {
+      mVals[m.id] = +this.value;
+      document.getElementById('msv-' + m.id).textContent = this.value;
+      document.getElementById('mh-' + m.id).textContent = this.value;
+      updateStats();
+    });
+  });
+}
+
+function updateStats() {
+  const stats = document.getElementById('stats');
+  let totalCells = JOURNEY.length * MECHANISM.length;
+  let linked = 0, strongCount = 0;
+  let jCoverage = new Set();
+  let mCoverage = new Set();
+
+  JOURNEY.forEach(j => {
+    MECHANISM.forEach(m => {
+      const lv = relevance[j.id + ':' + m.id];
+      if (lv > 0) {
+        linked++;
+        jCoverage.add(j.id);
+        mCoverage.add(m.id);
+      }
+      if (lv === 3) strongCount++;
+    });
+  });
+
+  const coverage = Math.round(linked / totalCells * 100);
+  const jGaps = JOURNEY.filter(j => !jCoverage.has(j.id)).map(j => j.label);
+  const mGaps = MECHANISM.filter(m => !mCoverage.has(m.id)).map(m => m.label);
+  const gaps = [...jGaps, ...mGaps];
+
+  stats.innerHTML = `
+    <div class="stat-item">関連セル <span class="stat-val">${linked}/${totalCells}</span></div>
+    <div class="stat-item">カバー率 <span class="stat-val">${coverage}%</span></div>
+    <div class="stat-item">強い関連 <span class="stat-val">${strongCount}</span></div>
+    ${gaps.length > 0 ? `<div class="stat-item">未接続 <span class="stat-val">${gaps.join(', ')}</span></div>` : '<div class="stat-item">全軸接続済み</div>'}
+  `;
+}
+
+function clearMatrix() {
+  JOURNEY.forEach(j => {
+    MECHANISM.forEach(m => {
+      relevance[j.id + ':' + m.id] = 0;
+    });
+  });
+  document.querySelectorAll('td.cell').forEach(td => {
+    td.setAttribute('data-level', 0);
+    td.querySelector('.cell-icon').textContent = LEVEL_ICONS[0];
+  });
+  updateStats();
+}
+
+function resetAll() {
+  JOURNEY.forEach(j => {
+    jVals[j.id] = 5;
+    const sl = document.getElementById('jsl-' + j.id);
+    const sv = document.getElementById('jsv-' + j.id);
+    const hv = document.getElementById('jh-' + j.id);
+    if (sl) sl.value = 5;
+    if (sv) sv.textContent = 5;
+    if (hv) hv.textContent = 5;
+  });
+  MECHANISM.forEach(m => {
+    mVals[m.id] = 5;
+    const sl = document.getElementById('msl-' + m.id);
+    const sv = document.getElementById('msv-' + m.id);
+    const hv = document.getElementById('mh-' + m.id);
+    if (sl) sl.value = 5;
+    if (sv) sv.textContent = 5;
+    if (hv) hv.textContent = 5;
+  });
+  clearMatrix();
+}
+
+buildMatrix();
+buildSliders();
+updateStats();
+</script>
+</body>
+</html>
