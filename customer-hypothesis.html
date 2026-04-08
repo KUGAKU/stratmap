@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>想定顧客マッピング</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b66;
+    --text3: #9e9d98;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 10px;
+    --radius-lg: 14px;
+    --font: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #e8e7e1;
+      --text2: #9e9d98;
+      --text3: #5f5e5a;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1.5rem 4rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .tabs { display: flex; gap: 6px; }
+  .tab {
+    font-size: 12px;
+    font-family: var(--font);
+    padding: 5px 14px;
+    border: 0.5px solid var(--border2);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+    transition: all .15s;
+  }
+  .tab.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .tab:hover:not(.active) { background: var(--bg2); }
+
+  .reset-btn {
+    font-size: 12px;
+    font-family: var(--font);
+    padding: 5px 14px;
+    border: 0.5px solid var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+    margin-left: auto;
+  }
+  .reset-btn:hover { background: var(--bg2); }
+
+  .group-toggles {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .g-chip {
+    font-size: 11px;
+    font-family: var(--font);
+    padding: 4px 12px;
+    border: 0.5px solid var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text3);
+    transition: all .15s;
+  }
+  .g-chip.on { color: inherit; }
+
+  .canvas-wrap { width: 100%; margin-bottom: 1rem; }
+  canvas { width: 100%; display: block; cursor: pointer; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .legend-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ---- Tooltip (desktop hover) ---- */
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    max-width: 240px;
+    padding: 10px 13px;
+    background: var(--bg);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip h3 {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  #tooltip p {
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.65;
+    margin: 0;
+  }
+  #tooltip .group-tag {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text3);
+    margin-left: 4px;
+  }
+
+  /* ---- Touch panel (mobile tap) ---- */
+  #touch-panel {
+    display: none;
+    margin: 8px 0 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg2);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    animation: fadein .15s ease;
+  }
+  #touch-panel.visible { display: block; }
+  #touch-panel h3 {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  #touch-panel p {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin: 0;
+  }
+  #touch-panel .group-tag {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text3);
+    margin-left: 4px;
+  }
+  @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+  .slider-section h2 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 1rem;
+  }
+
+  .slider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 0.75rem;
+  }
+  .slider-row { display: flex; flex-direction: column; gap: 5px; }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .slider-label .val {
+    font-weight: 500;
+    color: var(--text);
+    min-width: 16px;
+    text-align: right;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--bg3);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--border2);
+    cursor: pointer;
+    transition: transform .1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type=range]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+
+  .hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 0.25rem;
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 640px) {
+    body { padding: 1rem 0.875rem 3rem; }
+    h1 { font-size: 16px; }
+    .controls { gap: 6px; }
+    .tab, .reset-btn { font-size: 11px; padding: 4px 11px; }
+    .g-chip { font-size: 10px; padding: 3px 9px; }
+    .slider-grid { grid-template-columns: 1fr; gap: 10px; }
+    .detail-panel { padding: 0.75rem 1rem; }
+  }
+
+  @media (min-width: 641px) and (max-width: 900px) {
+    .slider-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (min-width: 901px) {
+    .slider-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>想定顧客マッピング</h1>
+<p class="subtitle">各軸の該当度（1〜10）を調整して、顧客仮説の形を可視化します</p>
+
+<div class="controls">
+  <div class="tabs">
+    <button class="tab active" onclick="setMode('radar', this)">レーダー</button>
+    <button class="tab" onclick="setMode('bubble', this)">バブル</button>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">リセット</button>
+</div>
+
+<div class="group-toggles" id="group-toggles"></div>
+
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="c"></canvas>
+</div>
+
+<div id="touch-panel"></div>
+
+<div class="legend" id="legend"></div>
+
+<div id="tooltip"></div>
+
+<div class="slider-section">
+  <h2>軸スコア調整</h2>
+  <div class="slider-grid" id="sliders"></div>
+  <p class="hint">* 各スライダーは「この顧客仮説における、その軸の該当度・重要度（1=低 / 10=高）」を表します</p>
+</div>
+
+<script>
+const AXES = [
+  { id:'geo',    label:'地域・地政学',    group:'企業・組織',    color:'#7F77DD', desc:'グローバル・国内・地方都市など、ターゲット地域の範囲と特性。海外展開の有無や地域固有の規制も含む。' },
+  { id:'size',   label:'企業規模',        group:'企業・組織',    color:'#7F77DD', desc:'大企業／中堅／SMB／スタートアップ。予算規模・意思決定速度・組織複雑性が大きく変わる。' },
+  { id:'biz',    label:'ビジネスモデル',  group:'企業・組織',    color:'#7F77DD', desc:'BtoB／BtoC／BtoG／プラットフォーム型。提供価値の構造と受益者が異なる。' },
+  { id:'phase',  label:'事業フェーズ',    group:'企業・組織',    color:'#7F77DD', desc:'創業期・成長期・成熟期・変革期。DX投資の動機と緊急度が異なる。' },
+  { id:'dx',     label:'DX成熟度',        group:'企業・組織',    color:'#7F77DD', desc:'DX先進企業・追随中・未着手。技術受容度と必要なアプローチが全く異なる。' },
+  { id:'reg',    label:'規制環境',        group:'企業・組織',    color:'#7F77DD', desc:'強規制（金融・医療・公共）から自由業種まで。コンプライアンス要件が商談構造を規定する。' },
+
+  { id:'dept',   label:'部署・部門',      group:'意思決定・組織', color:'#1D9E75', desc:'IT・経営企画・事業部門・法務・リスクなど。ペインの種類と意思決定権限が異なる。' },
+  { id:'layer',  label:'意思決定階層',    group:'意思決定・組織', color:'#1D9E75', desc:'CxO・部長・課長・担当者。各層で関心事・評価軸・アクセスルートが変わる。' },
+  { id:'budget', label:'予算権限',        group:'意思決定・組織', color:'#1D9E75', desc:'予算オーナー・承認者・影響者・ユーザーの分離度。誰が意思決定の鍵を持つか。' },
+  { id:'proc',   label:'購買プロセス',    group:'意思決定・組織', color:'#1D9E75', desc:'一括購買・稟議型・サブスク更新型。営業サイクルの長さと関与者数が変わる。' },
+  { id:'style',  label:'意思決定スタイル',group:'意思決定・組織', color:'#1D9E75', desc:'トップダウン・コンセンサス・現場起点。アプローチすべき人物と順序が変わる。' },
+
+  { id:'urgency',label:'課題の緊急度',    group:'課題・ニーズ',  color:'#D85A30', desc:'今すぐ解決したい・中期課題・潜在課題。提案のフレーミングと優先度が変わる。' },
+  { id:'aware',  label:'課題の認識度',    group:'課題・ニーズ',  color:'#D85A30', desc:'自覚あり・漠然と感じる・気づいていない。マーケティングの入口が変わる。' },
+  { id:'pain',   label:'ペイン vs ゲイン',group:'課題・ニーズ',  color:'#D85A30', desc:'痛みを除去したい型 vs 利益を最大化したい型。提案言語とROI設計が変わる。' },
+  { id:'motive', label:'変化の動機',      group:'課題・ニーズ',  color:'#D85A30', desc:'外部規制起点・競合対抗起点・内部改革起点。urgencyと合わせて提案設計を変える。' },
+
+  { id:'rel',    label:'既存関係',        group:'関係・文脈',    color:'#534AB7', desc:'既存顧客・見込み・全く新規。必要なエビデンスと信頼構築の速度が変わる。' },
+  { id:'comp',   label:'競合状況',        group:'関係・文脈',    color:'#534AB7', desc:'競合使用中・ノーベンダー・内製志向。差別化戦略と置き換えコストが変わる。' },
+];
+
+const GROUP_COLORS = {
+  '企業・組織':    '#7F77DD',
+  '意思決定・組織':'#1D9E75',
+  '課題・ニーズ':  '#D85A30',
+  '関係・文脈':    '#534AB7',
+};
+
+let values = {};
+let activeAxes = new Set(AXES.map(a => a.id));
+let currentMode = 'radar';
+AXES.forEach(a => values[a.id] = 5);
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+
+// ---- Build UI ----
+function buildGroupToggles() {
+  const wrap = document.getElementById('group-toggles');
+  Object.entries(GROUP_COLORS).forEach(([g, col]) => {
+    const btn = document.createElement('button');
+    btn.className = 'g-chip on';
+    btn.style.borderColor = col;
+    btn.style.color = col;
+    btn.textContent = g;
+    btn.onclick = () => {
+      const ids = AXES.filter(a => a.group === g).map(a => a.id);
+      const allOn = ids.every(id => activeAxes.has(id));
+      ids.forEach(id => allOn ? activeAxes.delete(id) : activeAxes.add(id));
+      btn.classList.toggle('on', !allOn);
+      if (!allOn) { btn.style.borderColor = col; btn.style.color = col; }
+      else { btn.style.borderColor = ''; btn.style.color = 'var(--text3)'; }
+      draw();
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+function buildSliders() {
+  const grid = document.getElementById('sliders');
+  AXES.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `
+      <div class="slider-label">
+        <span style="color:${a.color}">${a.label}</span>
+        <span class="val" id="sv-${a.id}">5</span>
+      </div>
+      <input type="range" min="1" max="10" value="5" step="1" id="sl-${a.id}">
+    `;
+    grid.appendChild(row);
+    row.querySelector('input').addEventListener('input', function() {
+      values[a.id] = +this.value;
+      document.getElementById('sv-' + a.id).textContent = this.value;
+      draw();
+    });
+  });
+}
+
+function buildLegend() {
+  const leg = document.getElementById('legend');
+  Object.entries(GROUP_COLORS).forEach(([g, col]) => {
+    leg.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${col}"></div><span>${g}</span></div>`;
+  });
+}
+
+const tooltip = document.getElementById('tooltip');
+const touchPanel = document.getElementById('touch-panel');
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+function tooltipHTML(axis) {
+  return `<h3 style="color:${axis.color}">${axis.label}<span class="group-tag">${axis.group}</span></h3><p>${axis.desc}</p>`;
+}
+
+function showTooltip(axis, clientX, clientY) {
+  if (isTouchDevice()) {
+    touchPanel.innerHTML = tooltipHTML(axis);
+    touchPanel.classList.add('visible');
+  } else {
+    tooltip.innerHTML = tooltipHTML(axis);
+    positionTooltip(clientX, clientY);
+    tooltip.classList.add('visible');
+  }
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+function positionTooltip(cx, cy) {
+  const tw = 240, th = 90;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = cx + 14;
+  let y = cy - 10;
+  if (x + tw > vw - 8) x = cx - tw - 14;
+  if (y + th > vh - 8) y = vh - th - 8;
+  if (y < 8) y = 8;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+
+function showDetail(axis) {
+  showTooltip(axis, 0, 0);
+}
+
+// ---- Mode ----
+function setMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  draw();
+}
+
+function resetAll() {
+  AXES.forEach(a => {
+    values[a.id] = 5;
+    const sl = document.getElementById('sl-' + a.id);
+    const sv = document.getElementById('sv-' + a.id);
+    if (sl) sl.value = 5;
+    if (sv) sv.textContent = 5;
+  });
+  draw();
+}
+
+// ---- Canvas ----
+function resize() {
+  const w = canvas.parentElement.clientWidth;
+  const isMobile = w < 480;
+  let h;
+  if (currentMode === 'bubble') {
+    const axes = getActiveAxes();
+    const groups = [...new Set(axes.map(a => a.group))];
+    if (isMobile) {
+      h = groups.reduce((acc, g) => acc + axes.filter(a => a.group === g).length * 52 + 40, 0) + 20;
+    } else {
+      h = Math.max(320, axes.length * 18 + 80);
+    }
+  } else {
+    h = Math.min(w * 0.85, 480);
+    h = Math.max(h, 300);
+  }
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.height = Math.round(h) + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function getActiveAxes() {
+  return AXES.filter(a => activeAxes.has(a.id));
+}
+
+function isDarkMode() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function draw() {
+  resize();
+  if (currentMode === 'radar') drawRadar();
+  else drawBubble();
+}
+
+function drawRadar() {
+  const axes = getActiveAxes();
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  ctx.clearRect(0, 0, W, H);
+
+  if (axes.length < 3) {
+    ctx.fillStyle = isDarkMode() ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('3軸以上を有効にしてください', W/2, H/2);
+    return;
+  }
+
+  const cx = W / 2;
+  const cy = H / 2 + 10;
+  const R = Math.min(W, H) * 0.32;
+  const n = axes.length;
+  const dark = isDarkMode();
+  const gridCol = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+
+  // Rings
+  for (let ring = 1; ring <= 5; ring++) {
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const r = R * ring / 5;
+      const x = cx + r * Math.cos(ang);
+      const y = cy + r * Math.sin(ang);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = gridCol;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    // Ring label
+    if (ring % 2 === 0) {
+      ctx.fillStyle = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(ring*2, cx + 4, cy - R * ring / 5 - 3);
+    }
+  }
+
+  // Spokes
+  axes.forEach((a, i) => {
+    const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + R * Math.cos(ang), cy + R * Math.sin(ang));
+    ctx.strokeStyle = gridCol;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  });
+
+  // Polygon fill
+  ctx.beginPath();
+  axes.forEach((a, i) => {
+    const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const r = R * values[a.id] / 10;
+    const x = cx + r * Math.cos(ang);
+    const y = cy + r * Math.sin(ang);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(127,119,221,0.13)';
+  ctx.fill();
+  ctx.strokeStyle = '#7F77DD';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Dots + labels
+  let hitTargets = [];
+  axes.forEach((a, i) => {
+    const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const r = R * values[a.id] / 10;
+    const px = cx + r * Math.cos(ang);
+    const py = cy + r * Math.sin(ang);
+    const lx = cx + (R + 28) * Math.cos(ang);
+    const ly = cy + (R + 28) * Math.sin(ang);
+
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fillStyle = a.color;
+    ctx.fill();
+
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = a.color;
+    ctx.textAlign = lx > cx + 5 ? 'left' : lx < cx - 5 ? 'right' : 'center';
+    ctx.textBaseline = ly > cy + 5 ? 'top' : ly < cy - 5 ? 'bottom' : 'middle';
+    ctx.fillText(a.label, lx, ly);
+
+    hitTargets.push({ axis: a, x: lx, y: ly });
+  });
+
+  canvas.onmousemove = (e) => {
+    if (isTouchDevice()) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+    let best = null, bestD = 40;
+    hitTargets.forEach(t => {
+      const d = Math.hypot(mx - t.x, my - t.y);
+      if (d < bestD) { best = t.axis; bestD = d; }
+    });
+    if (best) { showTooltip(best, e.clientX, e.clientY); positionTooltip(e.clientX, e.clientY); }
+    else hideTooltip();
+  };
+  canvas.onmouseleave = hideTooltip;
+  canvas.ontouchend = (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const rect = canvas.getBoundingClientRect();
+    const mx = (touch.clientX - rect.left) * (canvas.width / dpr / rect.width);
+    const my = (touch.clientY - rect.top) * (canvas.height / dpr / rect.height);
+    let best = null, bestD = 48;
+    hitTargets.forEach(t => {
+      const d = Math.hypot(mx - t.x, my - t.y);
+      if (d < bestD) { best = t.axis; bestD = d; }
+    });
+    if (best) showTooltip(best, touch.clientX, touch.clientY);
+  };
+  canvas.onclick = null;
+}
+
+function drawBubble() {
+  const axes = getActiveAxes();
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  ctx.clearRect(0, 0, W, H);
+  const dark = isDarkMode();
+  const isMobile = W < 480;
+
+  const groups = [...new Set(axes.map(a => a.group))];
+  let hitTargets = [];
+
+  if (isMobile) {
+    // Vertical stack: each group as a section
+    let offsetY = 10;
+    groups.forEach(g => {
+      const gAxes = axes.filter(a => a.group === g);
+      const col = GROUP_COLORS[g];
+      const rowH = 52;
+      const trackLeft = 80;
+      const trackRight = W - 16;
+
+      ctx.font = '500 11px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = col;
+      ctx.fillText(g, 8, offsetY + 14);
+      offsetY += 26;
+
+      gAxes.forEach(a => {
+        const cy = offsetY + rowH / 2;
+        const v = values[a.id];
+        const r = 5 + v * 1.6;
+        const bx = trackLeft + (v - 1) / 9 * (trackRight - trackLeft);
+
+        // Label left
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+        ctx.fillText(a.label, trackLeft - 6, cy);
+
+        // Track
+        ctx.beginPath();
+        ctx.moveTo(trackLeft, cy);
+        ctx.lineTo(trackRight, cy);
+        ctx.strokeStyle = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Bubble
+        ctx.beginPath();
+        ctx.arc(bx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = col + '28';
+        ctx.fill();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Value
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = col;
+        ctx.fillText(v, bx, cy);
+
+        hitTargets.push({ axis: a, x: bx, y: cy, r });
+        offsetY += rowH;
+      });
+      offsetY += 10;
+    });
+
+  } else {
+    // Horizontal: groups as columns
+    const gw = Math.floor((W - 32) / Math.max(groups.length, 1));
+
+    groups.forEach((g, gi) => {
+      const gAxes = axes.filter(a => a.group === g);
+      const col = GROUP_COLORS[g];
+      const gx = 16 + gi * gw;
+      const rowH = Math.min(60, (H - 54) / Math.max(gAxes.length, 1));
+
+      ctx.font = '500 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = col;
+      ctx.fillText(g, gx + gw / 2, 20);
+
+      gAxes.forEach((a, ai) => {
+        const cy = 42 + ai * rowH + rowH / 2;
+        const v = values[a.id];
+        const r = 5 + v * 2.0;
+        const trackLeft = gx + 10;
+        const trackRight = gx + gw - 10;
+        const bx = trackLeft + (v - 1) / 9 * (trackRight - trackLeft);
+
+        ctx.beginPath();
+        ctx.moveTo(trackLeft, cy);
+        ctx.lineTo(trackRight, cy);
+        ctx.strokeStyle = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(bx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = col + '28';
+        ctx.fill();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = col;
+        ctx.fillText(v, bx, cy);
+
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+        const short = a.label.length > 7 ? a.label.slice(0, 6) + '…' : a.label;
+        ctx.fillText(short, gx + 2, cy + r + 2);
+
+        hitTargets.push({ axis: a, x: bx, y: cy, r });
+      });
+    });
+  }
+
+  canvas.onmousemove = (e) => {
+    if (isTouchDevice()) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+    let best = null, bestD = 32;
+    hitTargets.forEach(t => {
+      const d = Math.hypot(mx - t.x, my - t.y);
+      if (d < bestD) { best = t.axis; bestD = d; }
+    });
+    if (best) { tooltip.innerHTML = tooltipHTML(best); positionTooltip(e.clientX, e.clientY); tooltip.classList.add('visible'); }
+    else hideTooltip();
+  };
+  canvas.onmouseleave = hideTooltip;
+  canvas.ontouchend = (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const rect = canvas.getBoundingClientRect();
+    const mx = (touch.clientX - rect.left) * (canvas.width / dpr / rect.width);
+    const my = (touch.clientY - rect.top) * (canvas.height / dpr / rect.height);
+    let best = null, bestD = 48;
+    hitTargets.forEach(t => {
+      const d = Math.hypot(mx - t.x, my - t.y);
+      if (d < bestD) { best = t.axis; bestD = d; }
+    });
+    if (best) showTooltip(best, touch.clientX, touch.clientY);
+  };
+  canvas.onclick = null;
+}
+
+// Init
+buildGroupToggles();
+buildSliders();
+buildLegend();
+draw();
+window.addEventListener('resize', draw);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
+</body>
+</html>
