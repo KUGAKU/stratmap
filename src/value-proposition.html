@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提供価値マッピング</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b66;
+    --text3: #9e9d98;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 10px;
+    --radius-lg: 14px;
+    --font: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #e8e7e1;
+      --text2: #9e9d98;
+      --text3: #5f5e5a;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1.5rem 4rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .tabs { display: flex; gap: 6px; }
+  .tab {
+    font-size: 12px;
+    font-family: var(--font);
+    padding: 5px 14px;
+    border: 0.5px solid var(--border2);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+    transition: all .15s;
+  }
+  .tab.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .tab:hover:not(.active) { background: var(--bg2); }
+
+  .reset-btn {
+    font-size: 12px;
+    font-family: var(--font);
+    padding: 5px 14px;
+    border: 0.5px solid var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+    margin-left: auto;
+  }
+  .reset-btn:hover { background: var(--bg2); }
+
+  .group-toggles {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .g-chip {
+    font-size: 11px;
+    font-family: var(--font);
+    padding: 4px 12px;
+    border: 0.5px solid var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text3);
+    transition: all .15s;
+  }
+  .g-chip.on { color: inherit; }
+
+  .canvas-wrap { width: 100%; margin-bottom: 1rem; }
+  canvas { width: 100%; display: block; cursor: pointer; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .legend-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    max-width: 240px;
+    padding: 10px 13px;
+    background: var(--bg);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip h3 {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  #tooltip p {
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.65;
+    margin: 0;
+  }
+  #tooltip .group-tag {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text3);
+    margin-left: 4px;
+  }
+
+  #touch-panel {
+    display: none;
+    margin: 8px 0 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg2);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    animation: fadein .15s ease;
+  }
+  #touch-panel.visible { display: block; }
+  #touch-panel h3 {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  #touch-panel p {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin: 0;
+  }
+  #touch-panel .group-tag {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text3);
+    margin-left: 4px;
+  }
+  @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+  .slider-section h2 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 1rem;
+  }
+
+  .slider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 0.75rem;
+  }
+  .slider-row { display: flex; flex-direction: column; gap: 5px; }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .slider-label .val {
+    font-weight: 500;
+    color: var(--text);
+    min-width: 16px;
+    text-align: right;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--bg3);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--border2);
+    cursor: pointer;
+    transition: transform .1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type=range]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+
+  .hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 0.25rem;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem 0.875rem 3rem; }
+    h1 { font-size: 16px; }
+    .controls { gap: 6px; }
+    .tab, .reset-btn { font-size: 11px; padding: 4px 11px; }
+    .g-chip { font-size: 10px; padding: 3px 9px; }
+    .slider-grid { grid-template-columns: 1fr; gap: 10px; }
+  }
+
+  @media (min-width: 641px) and (max-width: 900px) {
+    .slider-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (min-width: 901px) {
+    .slider-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>提供価値マッピング</h1>
+<p class="subtitle">提供価値の仮説を、種類・位置づけ・届き方・確からしさの4軸で整理します</p>
+
+<div class="controls">
+  <div class="tabs">
+    <button class="tab active" onclick="setMode('story', this)">ストーリー</button>
+    <button class="tab" onclick="setMode('heatmap', this)">ヒートマップ</button>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">リセット</button>
+</div>
+
+<div class="group-toggles" id="group-toggles"></div>
+
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="c"></canvas>
+</div>
+
+<div id="touch-panel"></div>
+
+<div class="legend" id="legend"></div>
+
+<div id="tooltip"></div>
+
+<div class="slider-section">
+  <h2>軸スコア調整</h2>
+  <div class="slider-grid" id="sliders"></div>
+  <p class="hint">* 各スライダーは「この提供価値仮説における、その軸の該当度・強度（1=低 / 10=高）」を表します</p>
+</div>
+
+<script>
+const AXES = [
+  { id:'functional', label:'機能的価値',   group:'価値の種類',     color:'#D85A30', desc:'やりたいことが、より良くできるようになるか' },
+  { id:'economic',   label:'経済的価値',   group:'価値の種類',     color:'#D85A30', desc:'コスト削減・売上向上に繋がるか' },
+  { id:'emotional',  label:'感情的価値',   group:'価値の種類',     color:'#D85A30', desc:'安心・快適・楽しさを感じられるか' },
+  { id:'social',     label:'社会的価値',   group:'価値の種類',     color:'#D85A30', desc:'周囲からの評価・信頼・帰属に繋がるか' },
+
+  { id:'pain',       label:'課題解消度',   group:'価値の位置づけ', color:'#1D9E75', desc:'既存のペインをどこまで取り除けるか' },
+  { id:'gain',       label:'新規ゲイン',   group:'価値の位置づけ', color:'#1D9E75', desc:'今まで得られなかった新しいメリットを生むか' },
+  { id:'advantage',  label:'代替優位性',   group:'価値の位置づけ', color:'#1D9E75', desc:'既存の解決策より明確に優れている点があるか' },
+  { id:'unique',     label:'独自性',       group:'価値の位置づけ', color:'#1D9E75', desc:'自社にしか出せない価値か' },
+
+  { id:'immediate',  label:'即効性',       group:'価値の届き方',   color:'#7F77DD', desc:'使い始めてすぐに実感できるか' },
+  { id:'lasting',    label:'持続性',       group:'価値の届き方',   color:'#7F77DD', desc:'長期的に価値が続く・蓄積するか' },
+  { id:'tangible',   label:'実感しやすさ', group:'価値の届き方',   color:'#7F77DD', desc:'定量的に測れる・目に見える変化があるか' },
+  { id:'spread',     label:'波及性',       group:'価値の届き方',   color:'#7F77DD', desc:'本人以外（チーム・組織）にも価値が広がるか' },
+
+  { id:'voice',      label:'顧客の声',     group:'仮説の確からしさ', color:'#C4873B', desc:'顧客自身が「欲しい」と言っているか' },
+  { id:'behavior',   label:'行動的根拠',   group:'仮説の確からしさ', color:'#C4873B', desc:'実際に顧客がお金・時間を使っている兆候があるか' },
+  { id:'validated',  label:'検証済み度',   group:'仮説の確からしさ', color:'#C4873B', desc:'MVP・PoC等で実際に確認できているか' },
+  { id:'market',     label:'市場規模感',   group:'仮説の確からしさ', color:'#C4873B', desc:'この価値を求める顧客層は十分大きいか' },
+];
+
+const GROUP_COLORS = {
+  '価値の種類':     '#D85A30',
+  '価値の位置づけ': '#1D9E75',
+  '価値の届き方':   '#7F77DD',
+  '仮説の確からしさ': '#C4873B',
+};
+
+const STORY_GROUPS = ['価値の種類', '価値の位置づけ', '価値の届き方'];
+const META_GROUP = '仮説の確からしさ';
+
+let values = {};
+let activeAxes = new Set(AXES.map(a => a.id));
+let currentMode = 'story';
+AXES.forEach(a => values[a.id] = 5);
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+
+// ---- Build UI ----
+function buildGroupToggles() {
+  const wrap = document.getElementById('group-toggles');
+  Object.entries(GROUP_COLORS).forEach(([g, col]) => {
+    const btn = document.createElement('button');
+    btn.className = 'g-chip on';
+    btn.style.borderColor = col;
+    btn.style.color = col;
+    btn.textContent = g;
+    btn.onclick = () => {
+      const ids = AXES.filter(a => a.group === g).map(a => a.id);
+      const allOn = ids.every(id => activeAxes.has(id));
+      ids.forEach(id => allOn ? activeAxes.delete(id) : activeAxes.add(id));
+      btn.classList.toggle('on', !allOn);
+      if (!allOn) { btn.style.borderColor = col; btn.style.color = col; }
+      else { btn.style.borderColor = ''; btn.style.color = 'var(--text3)'; }
+      draw();
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+function buildSliders() {
+  const grid = document.getElementById('sliders');
+  AXES.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `
+      <div class="slider-label">
+        <span style="color:${a.color}">${a.label}</span>
+        <span class="val" id="sv-${a.id}">5</span>
+      </div>
+      <input type="range" min="1" max="10" value="5" step="1" id="sl-${a.id}">
+    `;
+    grid.appendChild(row);
+    row.querySelector('input').addEventListener('input', function() {
+      values[a.id] = +this.value;
+      document.getElementById('sv-' + a.id).textContent = this.value;
+      draw();
+    });
+  });
+}
+
+function buildLegend() {
+  const leg = document.getElementById('legend');
+  Object.entries(GROUP_COLORS).forEach(([g, col]) => {
+    leg.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${col}"></div><span>${g}</span></div>`;
+  });
+}
+
+const tooltip = document.getElementById('tooltip');
+const touchPanel = document.getElementById('touch-panel');
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+function tooltipHTML(axis) {
+  return `<h3 style="color:${axis.color}">${axis.label}<span class="group-tag">${axis.group}</span></h3><p>${axis.desc}</p>`;
+}
+
+function showTooltip(axis, clientX, clientY) {
+  if (isTouchDevice()) {
+    touchPanel.innerHTML = tooltipHTML(axis);
+    touchPanel.classList.add('visible');
+  } else {
+    tooltip.innerHTML = tooltipHTML(axis);
+    positionTooltip(clientX, clientY);
+    tooltip.classList.add('visible');
+  }
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+function positionTooltip(cx, cy) {
+  const tw = 240, th = 90;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = cx + 14;
+  let y = cy - 10;
+  if (x + tw > vw - 8) x = cx - tw - 14;
+  if (y + th > vh - 8) y = vh - th - 8;
+  if (y < 8) y = 8;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+
+// ---- Mode ----
+function setMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  draw();
+}
+
+function resetAll() {
+  AXES.forEach(a => {
+    values[a.id] = 5;
+    const sl = document.getElementById('sl-' + a.id);
+    const sv = document.getElementById('sv-' + a.id);
+    if (sl) sl.value = 5;
+    if (sv) sv.textContent = 5;
+  });
+  draw();
+}
+
+// ---- Canvas ----
+function isDarkMode() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function getActiveAxes() {
+  return AXES.filter(a => activeAxes.has(a.id));
+}
+
+function resize() {
+  const w = canvas.parentElement.clientWidth;
+  const isMobile = w < 480;
+  let h;
+  if (currentMode === 'story') {
+    if (isMobile) {
+      const storyAxes = getActiveAxes().filter(a => STORY_GROUPS.includes(a.group));
+      const metaAxes = getActiveAxes().filter(a => a.group === META_GROUP);
+      const storyGroups = [...new Set(storyAxes.map(a => a.group))];
+      h = storyGroups.reduce((acc, g) => acc + storyAxes.filter(a => a.group === g).length * 44 + 56, 0);
+      if (metaAxes.length > 0) h += metaAxes.length * 32 + 56;
+      h = Math.max(h, 200) + 20;
+    } else {
+      h = 420;
+    }
+  } else {
+    // heatmap
+    if (isMobile) {
+      h = 400;
+    } else {
+      h = 340;
+    }
+  }
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.height = Math.round(h) + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function draw() {
+  resize();
+  if (currentMode === 'story') drawStory();
+  else drawHeatmap();
+}
+
+// ---- Story Flow View ----
+function drawStory() {
+  const axes = getActiveAxes();
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  ctx.clearRect(0, 0, W, H);
+  const dark = isDarkMode();
+  const isMobile = W < 480;
+
+  const storyAxes = axes.filter(a => STORY_GROUPS.includes(a.group));
+  const metaAxes = axes.filter(a => a.group === META_GROUP);
+  const activeStoryGroups = STORY_GROUPS.filter(g => storyAxes.some(a => a.group === g));
+
+  let hitTargets = [];
+
+  if (isMobile) {
+    // Mobile: vertical stack
+    let offsetY = 8;
+
+    activeStoryGroups.forEach((g, gi) => {
+      const gAxes = storyAxes.filter(a => a.group === g);
+      const col = GROUP_COLORS[g];
+      const labelLeft = 8;
+      const barLeft = 110;
+      const barRight = W - 40;
+      const barMaxW = barRight - barLeft;
+
+      // Group label
+      ctx.font = '500 12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = col;
+      ctx.fillText(g, labelLeft, offsetY + 14);
+      offsetY += 32;
+
+      gAxes.forEach(a => {
+        const cy = offsetY + 16;
+        const v = values[a.id];
+        const barW = (v / 10) * barMaxW;
+
+        // Axis label
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.55)';
+        ctx.fillText(a.label, barLeft - 8, cy);
+
+        // Bar background
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+        ctx.beginPath();
+        ctx.roundRect(barLeft, cy - 8, barMaxW, 16, 3);
+        ctx.fill();
+
+        // Bar fill
+        if (barW > 0) {
+          ctx.fillStyle = col + '40';
+          ctx.beginPath();
+          ctx.roundRect(barLeft, cy - 8, barW, 16, 3);
+          ctx.fill();
+          ctx.strokeStyle = col + '80';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.roundRect(barLeft, cy - 8, barW, 16, 3);
+          ctx.stroke();
+        }
+
+        // Value text
+        ctx.font = '500 11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = col;
+        ctx.fillText(v, barRight + 6, cy);
+
+        hitTargets.push({ axis: a, x: barLeft + barW / 2, y: cy, w: barMaxW, h: 16 });
+        offsetY += 44;
+      });
+
+      // Arrow between groups
+      if (gi < activeStoryGroups.length - 1) {
+        const arrowY = offsetY + 4;
+        const arrowX = W / 2;
+        ctx.strokeStyle = dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(arrowX, arrowY + 12);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowX - 4, arrowY + 8);
+        ctx.lineTo(arrowX, arrowY + 12);
+        ctx.lineTo(arrowX + 4, arrowY + 8);
+        ctx.stroke();
+        offsetY += 24;
+      }
+    });
+
+    // Separator line
+    if (metaAxes.length > 0) {
+      offsetY += 8;
+      ctx.strokeStyle = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(16, offsetY);
+      ctx.lineTo(W - 16, offsetY);
+      ctx.stroke();
+      offsetY += 16;
+
+      // Meta group label
+      const metaCol = GROUP_COLORS[META_GROUP];
+      ctx.font = '500 12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = metaCol;
+      ctx.fillText(META_GROUP, 8, offsetY + 6);
+      offsetY += 24;
+
+      // Dot indicators
+      metaAxes.forEach(a => {
+        const cy = offsetY + 8;
+        const v = values[a.id];
+        const dots = 5;
+        const filled = Math.round(v / 2);
+        const dotR = 5;
+        const dotGap = 14;
+        const labelX = 110;
+        const dotsStartX = labelX + 8;
+
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.55)';
+        ctx.fillText(a.label, labelX - 8, cy);
+
+        for (let d = 0; d < dots; d++) {
+          const dx = dotsStartX + d * dotGap;
+          ctx.beginPath();
+          ctx.arc(dx, cy, dotR, 0, Math.PI * 2);
+          if (d < filled) {
+            ctx.fillStyle = metaCol;
+          } else {
+            ctx.fillStyle = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+          }
+          ctx.fill();
+        }
+
+        // Value text
+        ctx.font = '500 10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = metaCol;
+        ctx.fillText(v, dotsStartX + dots * dotGap + 4, cy);
+
+        hitTargets.push({ axis: a, x: dotsStartX + dots * dotGap / 2, y: cy, w: dots * dotGap, h: 16 });
+        offsetY += 32;
+      });
+    }
+
+  } else {
+    // Desktop: 3-column flow
+    const colCount = activeStoryGroups.length || 1;
+    const margin = 16;
+    const arrowW = 32;
+    const totalArrowW = (colCount - 1) * arrowW;
+    const colW = (W - margin * 2 - totalArrowW) / colCount;
+    const topY = 12;
+
+    activeStoryGroups.forEach((g, gi) => {
+      const gAxes = storyAxes.filter(a => a.group === g);
+      const col = GROUP_COLORS[g];
+      const colX = margin + gi * (colW + arrowW);
+      const barLeft = colX + 80;
+      const barRight = colX + colW - 24;
+      const barMaxW = barRight - barLeft;
+
+      // Group label
+      ctx.font = '500 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = col;
+      ctx.fillText(g, colX + colW / 2, topY);
+
+      gAxes.forEach((a, ai) => {
+        const cy = topY + 40 + ai * 48;
+        const v = values[a.id];
+        const barW = (v / 10) * barMaxW;
+
+        // Axis label
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.55)';
+        ctx.fillText(a.label, barLeft - 6, cy);
+
+        // Bar background
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+        ctx.beginPath();
+        ctx.roundRect(barLeft, cy - 9, barMaxW, 18, 4);
+        ctx.fill();
+
+        // Bar fill
+        if (barW > 0) {
+          ctx.fillStyle = col + '40';
+          ctx.beginPath();
+          ctx.roundRect(barLeft, cy - 9, barW, 18, 4);
+          ctx.fill();
+          ctx.strokeStyle = col + '80';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.roundRect(barLeft, cy - 9, barW, 18, 4);
+          ctx.stroke();
+        }
+
+        // Value text
+        ctx.font = '500 11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = col;
+        ctx.fillText(v, barRight + 5, cy);
+
+        hitTargets.push({ axis: a, x: barLeft + barW / 2, y: cy, w: barMaxW, h: 18 });
+      });
+
+      // Arrow between columns
+      if (gi < activeStoryGroups.length - 1) {
+        const arrowX = colX + colW + arrowW / 2;
+        const arrowY = topY + 40 + (gAxes.length - 1) * 24;
+        ctx.strokeStyle = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(arrowX - 8, arrowY);
+        ctx.lineTo(arrowX + 8, arrowY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowX + 4, arrowY - 4);
+        ctx.lineTo(arrowX + 8, arrowY);
+        ctx.lineTo(arrowX + 4, arrowY + 4);
+        ctx.stroke();
+      }
+    });
+
+    // Separator line
+    if (metaAxes.length > 0) {
+      const sepY = topY + 40 + 4 * 48 + 8;
+      ctx.strokeStyle = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(margin, sepY);
+      ctx.lineTo(W - margin, sepY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Meta group label
+      const metaCol = GROUP_COLORS[META_GROUP];
+      ctx.font = '500 12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = metaCol;
+      ctx.fillText(META_GROUP, margin, sepY + 22);
+
+      // Dot indicators in 2x2 grid
+      const dotStartY = sepY + 42;
+      const dotColW = (W - margin * 2) / 2;
+
+      metaAxes.forEach((a, ai) => {
+        const col2 = ai % 2;
+        const row2 = Math.floor(ai / 2);
+        const baseX = margin + col2 * dotColW;
+        const cy = dotStartY + row2 * 32;
+        const v = values[a.id];
+        const dots = 5;
+        const filled = Math.round(v / 2);
+        const dotR = 5;
+        const dotGap = 14;
+        const labelX = baseX + 80;
+        const dotsStartX = labelX + 8;
+
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.55)';
+        ctx.fillText(a.label, labelX - 6, cy);
+
+        for (let d = 0; d < dots; d++) {
+          const dx = dotsStartX + d * dotGap;
+          ctx.beginPath();
+          ctx.arc(dx, cy, dotR, 0, Math.PI * 2);
+          if (d < filled) {
+            ctx.fillStyle = metaCol;
+          } else {
+            ctx.fillStyle = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+          }
+          ctx.fill();
+        }
+
+        ctx.font = '500 10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = metaCol;
+        ctx.fillText(v, dotsStartX + dots * dotGap + 4, cy);
+
+        hitTargets.push({ axis: a, x: dotsStartX + dots * dotGap / 2, y: cy, w: dots * dotGap, h: 16 });
+      });
+    }
+  }
+
+  setupHitDetection(hitTargets);
+}
+
+// ---- Heatmap View ----
+function drawHeatmap() {
+  const axes = getActiveAxes();
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  ctx.clearRect(0, 0, W, H);
+  const dark = isDarkMode();
+  const isMobile = W < 480;
+
+  const groups = Object.keys(GROUP_COLORS).filter(g => axes.some(a => a.group === g));
+
+  if (groups.length === 0) {
+    ctx.fillStyle = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('1つ以上のグループを有効にしてください', W / 2, H / 2);
+    return;
+  }
+
+  let hitTargets = [];
+  const margin = isMobile ? 8 : 16;
+  const rowLabelW = isMobile ? 50 : 90;
+  const topHeaderH = 40;
+  const rowH = isMobile ? 52 : 56;
+
+  // Find max columns (4 axes per group)
+  const maxCols = 4;
+  const gridLeft = margin + rowLabelW;
+  const gridRight = W - margin;
+  const cellW = (gridRight - gridLeft) / maxCols;
+
+  // Column headers: use first group's axis labels as reference for column positions
+  // Each column corresponds to the Nth axis within each group
+  const colLabels = ['軸1', '軸2', '軸3', '軸4'];
+
+  // Draw column headers using actual axis labels from first active group
+  const firstGroup = groups[0];
+  const firstGroupAxes = axes.filter(a => a.group === firstGroup);
+  ctx.font = isMobile ? '9px sans-serif' : '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+
+  for (let ci = 0; ci < maxCols; ci++) {
+    const cx = gridLeft + ci * cellW + cellW / 2;
+    // Show abbreviated label
+    if (firstGroupAxes[ci]) {
+      const lbl = firstGroupAxes[ci].label;
+      const short = lbl.length > 5 ? lbl.slice(0, 4) + '…' : lbl;
+      ctx.fillText(short, cx, topHeaderH - 4);
+    }
+  }
+
+  // Draw rows
+  groups.forEach((g, gi) => {
+    const gAxes = axes.filter(a => a.group === g);
+    const col = GROUP_COLORS[g];
+    const rowY = topHeaderH + gi * rowH;
+
+    // Row label (group name)
+    ctx.font = isMobile ? '500 10px sans-serif' : '500 11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = col;
+    const rowCenterY = rowY + rowH / 2;
+    const groupShort = isMobile && g.length > 6 ? g.slice(0, 5) + '…' : g;
+    ctx.fillText(groupShort, margin + rowLabelW - 8, rowCenterY);
+
+    // Row separator
+    if (gi > 0) {
+      ctx.strokeStyle = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(gridLeft, rowY);
+      ctx.lineTo(gridRight, rowY);
+      ctx.stroke();
+    }
+
+    // Cells
+    gAxes.forEach((a, ai) => {
+      if (ai >= maxCols) return;
+      const cellX = gridLeft + ai * cellW;
+      const v = values[a.id];
+      const alpha = (v / 10) * 0.35;
+
+      // Parse color to RGB for alpha
+      const r = parseInt(col.slice(1, 3), 16);
+      const gv = parseInt(col.slice(3, 5), 16);
+      const b = parseInt(col.slice(5, 7), 16);
+
+      // Cell background
+      ctx.fillStyle = `rgba(${r},${gv},${b},${alpha})`;
+      ctx.beginPath();
+      ctx.roundRect(cellX + 2, rowY + 3, cellW - 4, rowH - 6, 4);
+      ctx.fill();
+
+      // Mini bar inside cell
+      const barPad = 6;
+      const barH = 4;
+      const barMaxW = cellW - barPad * 2 - 4;
+      const barW = (v / 10) * barMaxW;
+      const barY = rowCenterY + 8;
+
+      ctx.fillStyle = `rgba(${r},${gv},${b},0.3)`;
+      ctx.beginPath();
+      ctx.roundRect(cellX + barPad, barY, barMaxW, barH, 2);
+      ctx.fill();
+
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.roundRect(cellX + barPad, barY, barW, barH, 2);
+      ctx.fill();
+
+      // Value number
+      ctx.font = '500 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)';
+      ctx.fillText(v, cellX + cellW / 2, rowCenterY - 4);
+
+      // Axis label below bar
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+      const axisShort = a.label.length > 6 ? a.label.slice(0, 5) + '…' : a.label;
+      ctx.fillText(axisShort, cellX + cellW / 2, barY + barH + 10);
+
+      hitTargets.push({ axis: a, x: cellX + cellW / 2, y: rowCenterY, w: cellW, h: rowH });
+    });
+  });
+
+  setupHitDetection(hitTargets);
+}
+
+// ---- Hit Detection ----
+function setupHitDetection(hitTargets) {
+  canvas.onmousemove = (e) => {
+    if (isTouchDevice()) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+    let best = null, bestD = 40;
+    hitTargets.forEach(t => {
+      const d = Math.hypot(mx - t.x, my - t.y);
+      if (d < bestD) { best = t.axis; bestD = d; }
+    });
+    if (best) { showTooltip(best, e.clientX, e.clientY); }
+    else hideTooltip();
+  };
+  canvas.onmouseleave = hideTooltip;
+  canvas.ontouchend = (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const rect = canvas.getBoundingClientRect();
+    const mx = (touch.clientX - rect.left) * (canvas.width / dpr / rect.width);
+    const my = (touch.clientY - rect.top) * (canvas.height / dpr / rect.height);
+    let best = null, bestD = 48;
+    hitTargets.forEach(t => {
+      const d = Math.hypot(mx - t.x, my - t.y);
+      if (d < bestD) { best = t.axis; bestD = d; }
+    });
+    if (best) showTooltip(best, touch.clientX, touch.clientY);
+  };
+  canvas.onclick = null;
+}
+
+// Init
+buildGroupToggles();
+buildSliders();
+buildLegend();
+draw();
+window.addEventListener('resize', draw);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
+</body>
+</html>
